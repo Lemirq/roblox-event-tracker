@@ -1,8 +1,11 @@
 import io
+import select
 import signal
 import sys
+import termios
 import threading
 import time
+import tty
 from collections import deque
 
 import objc
@@ -157,29 +160,141 @@ class PreviewWindow(NSWindow):
             self.setAspectRatio_(ns_image.size())
 
 
-def list_windows():
-    """List all available windows on the system"""
-    print("\n=== Available Windows ===")
-
+def get_windows():
+    """Get all available windows on the system as a list of dicts"""
     window_list = Quartz.CGWindowListCopyWindowInfo(
         Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID
     )
 
-    for i, window in enumerate(window_list):
-        window_id = window.get("kCGWindowNumber", "N/A")
+    windows = []
+    for window in window_list:
+        window_id = window.get("kCGWindowNumber")
         window_name = window.get("kCGWindowName", "")
         owner_name = window.get("kCGWindowOwnerName", "")
         bounds = window.get("kCGWindowBounds", {})
 
+        # Only include windows with some identifying info
         if window_name or owner_name:
-            print(
-                f"  [{i}] ID: {window_id} | "
-                f"Owner: {owner_name} | "
-                f"Name: {window_name} | "
-                f"Size: {bounds.get('Width', 0):.0f}x{bounds.get('Height', 0):.0f}"
-            )
+            windows.append({
+                "id": window_id,
+                "name": window_name,
+                "owner": owner_name,
+                "width": bounds.get("Width", 0),
+                "height": bounds.get("Height", 0),
+            })
+
+    return windows
+
+
+def list_windows():
+    """List all available windows on the system"""
+    print("\n=== Available Windows ===")
+
+    windows = get_windows()
+    for i, w in enumerate(windows):
+        print(
+            f"  [{i}] ID: {w['id']} | "
+            f"Owner: {w['owner']} | "
+            f"Name: {w['name']} | "
+            f"Size: {w['width']:.0f}x{w['height']:.0f}"
+        )
 
     print()
+
+
+def select_window_interactive():
+    """Interactive window selector using arrow keys and enter"""
+    windows = get_windows()
+    
+    if not windows:
+        print("No windows found!")
+        return None
+    
+    selected_index = 0
+    
+    # Save terminal settings
+    old_settings = termios.tcgetattr(sys.stdin)
+    
+    def write_line(text=""):
+        """Write a line with proper carriage return for raw mode"""
+        sys.stdout.write(text + "\r\n")
+    
+    def draw_menu():
+        # Move cursor to top (don't clear to avoid flicker)
+        sys.stdout.write("\033[H")
+        write_line("=== Select a Window ===")
+        write_line("Use Up/Down arrow keys to navigate, Enter to select, q to quit")
+        write_line()
+        
+        for i, w in enumerate(windows):
+            prefix = "> " if i == selected_index else "  "
+            highlight_start = "\033[7m" if i == selected_index else ""
+            highlight_end = "\033[0m" if i == selected_index else ""
+            
+            owner = (w['owner'] or "")[:20].ljust(20)
+            name = (w['name'] or "")[:30].ljust(30)
+            
+            line = (
+                f"{prefix}{highlight_start}"
+                f"[{i:2}] ID: {w['id']:5} | "
+                f"Owner: {owner} | "
+                f"Name: {name} | "
+                f"Size: {w['width']:.0f}x{w['height']:.0f}"
+                f"{highlight_end}"
+            )
+            # Clear to end of line to handle varying line lengths
+            write_line(line + "\033[K")
+        
+        sys.stdout.flush()
+    
+    def get_key():
+        """Read a single keypress, handling arrow keys"""
+        ch = sys.stdin.read(1)
+        if ch == '\x1b':  # Escape sequence
+            # Read the rest of the escape sequence
+            ch += sys.stdin.read(2)
+        return ch
+    
+    try:
+        # Set terminal to raw mode
+        tty.setraw(sys.stdin.fileno())
+        
+        # Clear screen once at start
+        sys.stdout.write("\033[2J\033[H")
+        sys.stdout.flush()
+        
+        # Draw initial menu
+        draw_menu()
+        
+        while True:
+            key = get_key()
+            
+            if key == '\x1b[A':  # Up arrow
+                selected_index = (selected_index - 1) % len(windows)
+            elif key == '\x1b[B':  # Down arrow
+                selected_index = (selected_index + 1) % len(windows)
+            elif key in ('\r', '\n'):  # Enter
+                break
+            elif key in ('q', 'Q', '\x03'):  # q or Ctrl+C
+                selected_index = None
+                break
+            
+            draw_menu()
+    
+    finally:
+        # Restore terminal settings
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+        # Clear screen
+        sys.stdout.write("\033[2J\033[H")
+        sys.stdout.flush()
+    
+    if selected_index is None:
+        print("Selection cancelled.")
+        return None
+    
+    selected = windows[selected_index]
+    print(f"Selected: {selected['owner']} - {selected['name']} (ID: {selected['id']})")
+    return selected['id']
 
 
 def find_window_by_name(window_name_substring):
@@ -560,9 +675,6 @@ def monitor_window(
 
 
 if __name__ == "__main__":
-    # Window to capture
-    WINDOW_NAME = "14488"
-
     # Words to detect
     TARGET_WORDS = ["Exclusive", "Hacker"]
 
@@ -580,8 +692,11 @@ if __name__ == "__main__":
     FAST_MODE = False
     SCALE_FACTOR = 0.5  # Downscale to 50% for faster OCR
 
-    # List all windows first
-    list_windows()
+    # Interactive window selection
+    window_id = select_window_interactive()
+    
+    if window_id is None:
+        sys.exit(0)
 
     # Initialize NSApplication
     app = NSApplication.sharedApplication()
@@ -593,7 +708,7 @@ if __name__ == "__main__":
     # Start monitoring in a separate thread
     monitor_thread = threading.Thread(
         target=monitor_window,
-        args=(WINDOW_NAME, TARGET_WORDS),
+        args=(window_id, TARGET_WORDS),
         kwargs={
             "interval": 1,
             "cooldown": COOLDOWN,

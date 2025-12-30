@@ -57,8 +57,8 @@ python native.py
 ```
 
 This will:
-- List all available windows on your system
-- Capture the specified window directly (no OBS needed)
+- Display an interactive window selector (use arrow keys to navigate, Enter to select)
+- Capture the selected window directly (no OBS needed)
 - Crop to a configurable region (default: middle third horizontally, top half vertically)
 - Downscale the image for faster processing (default: 50%)
 - Perform OCR using macOS Vision framework
@@ -68,7 +68,6 @@ This will:
 
 **Configuration** (edit `native.py`):
 ```python
-WINDOW_NAME = "14488"              # Window ID or partial name to match
 TARGET_WORDS = ["Exclusive", "Hacker"]  # Words to detect
 
 # Crop settings (0.0 to 1.0)
@@ -170,7 +169,7 @@ Create a Raycast Script to toggle the cliclick-based autoclicker:
 ### native.py Settings
 
 ```python
-WINDOW_NAME = "14488"      # Window ID or partial name match
+# Window is selected interactively at launch
 CROP_H_START = 1/3         # Crop horizontal start (0-1)
 CROP_H_END = 2/3           # Crop horizontal end (0-1)
 CROP_V_START = 1/8         # Crop vertical start (0-1)
@@ -216,8 +215,8 @@ INTERVAL = 0.5             # Capture interval in seconds
 
 ### Native Window Monitor
 
-1. Lists all windows and finds target by ID or name substring
-2. Captures window using Quartz CGWindowListCreateImage
+1. Displays interactive window picker at launch
+2. Captures selected window using Quartz CGWindowListCreateImage
 3. Crops to specified region to focus on relevant area
 4. Downscales image for faster OCR processing
 5. Uses macOS Vision framework's VNRecognizeTextRequest for OCR
@@ -242,9 +241,8 @@ INTERVAL = 0.5             # Capture interval in seconds
 ## Troubleshooting
 
 **"No windows found matching..."** (native.py)
-- Run the script to see the list of available windows
-- Use the exact window ID (number) instead of name for reliability
-- Make sure the target window is visible on screen
+- Make sure windows are visible on screen
+- Press 'q' to quit the window selector if needed
 
 **"Failed to connect to OBS"**
 - Make sure OBS is running
