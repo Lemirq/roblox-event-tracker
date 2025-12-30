@@ -8,6 +8,7 @@ Wanted to overengineer and track when special events happened in the Roblox game
 - **Autoclicker** (`main.py`) - Toggleable auto-clicker with Alt+X
 - **Anti-Idle Script** (`roblox-inactivity.py`) - Performs random realistic actions (walk, jump, camera rotate) to prevent disconnects
 - **Quick Toggle** (`autoclick_toggle.scpt`) - AppleScript for quick autoclicker on/off
+- **Raycast Integration** - Toggle autoclicker via Raycast hotkey
 
 ## Requirements
 
@@ -84,6 +85,42 @@ Move mouse to top-left corner or press `Ctrl+C` to stop.
 ### Quick Toggle (AppleScript)
 
 Double-click `autoclick_toggle.scpt` to toggle the cliclick-based autoclicker.
+
+### Raycast Integration
+
+You can create a Raycast Script to toggle the autoclicker:
+
+1. Open Raycast Settings → Extensions → Scripts
+2. Create a new Script with:
+   - **Name**: Toggle Autoclicker
+   - **Type**: Shell Script
+   - **Source**:
+     ```bash
+     cd /Users/vs/autoclicker
+     python3 autoclicker_raycast.py toggle
+     ```
+3. Create the `autoclicker_raycast.py` file with:
+   ```python
+   import os
+   import time
+   import pyautogui
+
+   FLAG_FILE = "/tmp/autoclicker_running"
+   CLICK_DELAY = 0.01
+
+   if __name__ == "__main__":
+       if len(os.sys.argv) > 1 and os.sys.argv[1] == "toggle":
+           if os.path.exists(FLAG_FILE):
+               os.remove(FLAG_FILE)
+           else:
+               open(FLAG_FILE, "w").close()
+
+       while os.path.exists(FLAG_FILE):
+           pyautogui.click()
+           time.sleep(CLICK_DELAY)
+   ```
+4. Assign a hotkey in Raycast (e.g., `Cmd+Shift+A`)
+5. Run `python3 autoclicker_raycast.py` in the background before using the toggle
 
 ## Configuration
 
