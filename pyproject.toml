@@ -1,0 +1,16 @@
+[project]
+name = "autoclicker"
+version = "0.1.0"
+description = "Roblox Park a Car event tracker with OCR monitoring and anti-idle utilities"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "obs-websocket-py>=1.0",
+    "obsws-python>=1.8.0",
+    "pillow>=12.0.0",
+    "pyautogui>=0.9.54",
+    "pynput>=1.8.1",
+    "pyobjc-framework-cocoa>=12.1",
+    "pyobjc-framework-quartz>=12.1",
+    "pyobjc-framework-vision>=12.1",
+]
