@@ -119,7 +119,7 @@ Create a Raycast Script to toggle the cliclick-based autoclicker:
          do shell script "rm " & flagFile
      end if
      ```
-3. Assign a hotkey in Raycast (e.g., `Cmd+Shift+A`)
+3. Assign a hotkey in Raycast (e.g., `Option+X`)
 
 ## Configuration
 
