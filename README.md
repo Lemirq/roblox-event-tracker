@@ -88,39 +88,38 @@ Double-click `autoclick_toggle.scpt` to toggle the cliclick-based autoclicker.
 
 ### Raycast Integration
 
-You can create a Raycast Script to toggle the autoclicker:
+Create a Raycast Script to toggle the cliclick-based autoclicker:
 
 1. Open Raycast Settings → Extensions → Scripts
 2. Create a new Script with:
-   - **Name**: Toggle Autoclicker
-   - **Type**: Shell Script
+   - **Name**: Autoclicker
+   - **Type**: AppleScript
    - **Source**:
-     ```bash
-     cd /Users/vs/autoclicker
-     python3 autoclicker_raycast.py toggle
+     ```applescript
+     #!/usr/bin/osascript
+
+     # Required parameters:
+     # @raycast.schemaVersion 1
+     # @raycast.title Autoclicker
+     # @raycast.mode silent
+
+     # Optional parameters:
+     # @raycast.icon 🤖
+
+     # Documentation:
+     # @raycast.author Vihaan
+     # @raycast.authorURL https://vhaan.me
+
+     set flagFile to "/tmp/autoclicker_running"
+
+     if (do shell script "test -f " & flagFile & " && echo yes || echo no") is "no" then
+         do shell script "touch " & flagFile
+         do shell script "nohup sh -c 'while [ -f " & flagFile & " ]; do cliclick c:. ; sleep 0.01; done' >/dev/null 2>&1 &"
+     else
+         do shell script "rm " & flagFile
+     end if
      ```
-3. Create the `autoclicker_raycast.py` file with:
-   ```python
-   import os
-   import time
-   import pyautogui
-
-   FLAG_FILE = "/tmp/autoclicker_running"
-   CLICK_DELAY = 0.01
-
-   if __name__ == "__main__":
-       if len(os.sys.argv) > 1 and os.sys.argv[1] == "toggle":
-           if os.path.exists(FLAG_FILE):
-               os.remove(FLAG_FILE)
-           else:
-               open(FLAG_FILE, "w").close()
-
-       while os.path.exists(FLAG_FILE):
-           pyautogui.click()
-           time.sleep(CLICK_DELAY)
-   ```
-4. Assign a hotkey in Raycast (e.g., `Cmd+Shift+A`)
-5. Run `python3 autoclicker_raycast.py` in the background before using the toggle
+3. Assign a hotkey in Raycast (e.g., `Cmd+Shift+A`)
 
 ## Configuration
 
