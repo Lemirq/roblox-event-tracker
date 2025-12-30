@@ -4,7 +4,7 @@ Wanted to overengineer and track when special events happened in the Roblox game
 
 ## Features
 
-- **OBS Event Monitor** (`obs.py`) - Captures your OBS scene in real-time and uses macOS Vision framework to detect text. Alerts when target words appear on screen.
+- **OBS Event Monitor** (`obs.py`) - Captures your OBS scene in real-time and uses macOS Vision framework to detect text. Alerts when target words appear on screen. Includes built-in performance monitoring (FPS, processing times).
 - **Autoclicker** (`main.py`) - Toggleable auto-clicker with Alt+X
 - **Anti-Idle Script** (`roblox-inactivity.py`) - Performs random realistic actions (walk, jump, camera rotate) to prevent disconnects
 - **Quick Toggle** (`autoclick_toggle.scpt`) - AppleScript for quick autoclicker on/off
@@ -61,6 +61,14 @@ This will:
 - Perform OCR using macOS Vision framework
 - Print detected text and play sound when target words appear
 - Show a preview window of what's being captured
+- Display performance stats every 5 seconds (FPS, processing times)
+
+**Performance Stats Displayed:**
+- FPS: Frames per second over last 30 frames
+- Capture time: Time to fetch screenshot from OBS (ms)
+- Convert time: Time to convert to CGImage format (ms)
+- OCR time: Time for Vision framework to process (ms)
+- Total: Combined processing time (ms)
 
 Press `Ctrl+C` to stop.
 
@@ -143,6 +151,16 @@ CLICK_DELAY = 0.01         # Seconds between clicks
 
 ```python
 wait_time = random.randint(120, 240)  # Action interval (2-4 minutes)
+```
+
+### virtual_camera_monitor.py Settings
+
+```python
+CAMERA_INDEX = 2           # Camera device index (try 0, 1, 2)
+CAPTURE_WIDTH = 640        # Capture resolution (lower = faster)
+CAPTURE_HEIGHT = 480
+FAST_MODE = False           # Fast OCR (set False for accurate mode)
+INTERVAL = 0.5             # Capture interval in seconds
 ```
 
 ## How It Works

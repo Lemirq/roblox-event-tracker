@@ -2,6 +2,7 @@ import base64
 import io
 import threading
 import time
+from collections import deque
 
 import objc
 import obsws_python as obs
@@ -11,6 +12,66 @@ from AppKit import NSApp, NSApplication, NSBeep, NSImage, NSImageView, NSSound, 
 from Foundation import NSData, NSMakeRect
 from PIL import Image
 from PyObjCTools import AppHelper
+
+
+class PerformanceMonitor:
+    """Track and display performance metrics"""
+
+    def __init__(self, window_size=30):
+        self.window_size = window_size
+        self.frame_times = deque(maxlen=window_size)
+        self.capture_times = deque(maxlen=window_size)
+        self.ocr_times = deque(maxlen=window_size)
+        self.conversion_times = deque(maxlen=window_size)
+        self.total_frames = 0
+        self.start_time = time.time()
+        self.last_stats_time = time.time()
+        self.stats_interval = 5.0
+
+    def record_frame(self, capture_time=0, ocr_time=0, conversion_time=0):
+        self.frame_times.append(time.time())
+        self.capture_times.append(capture_time)
+        self.ocr_times.append(ocr_time)
+        self.conversion_times.append(conversion_time)
+        self.total_frames += 1
+
+    def get_fps(self):
+        if len(self.frame_times) < 2:
+            return 0
+        duration = self.frame_times[-1] - self.frame_times[0]
+        return (len(self.frame_times) - 1) / duration if duration > 0 else 0
+
+    def get_average_times(self):
+        def avg(d):
+            return sum(d) / len(d) if d else 0
+
+        return {
+            "capture": avg(self.capture_times),
+            "ocr": avg(self.ocr_times),
+            "conversion": avg(self.conversion_times),
+        }
+
+    def print_stats(self):
+        now = time.time()
+        if now - self.last_stats_time < self.stats_interval:
+            return
+
+        self.last_stats_time = now
+
+        fps = self.get_fps()
+        times = self.get_average_times()
+        total_avg = sum(times.values())
+
+        elapsed = now - self.start_time
+        print(
+            f"\n=== Performance Stats ==="
+            f"\nFrames: {self.total_frames} | FPS: {fps:.2f}"
+            f"\nAvg times (ms): Capture={times['capture']*1000:.1f} "
+            f"Convert={times['conversion']*1000:.1f} "
+            f"OCR={times['ocr']*1000:.1f} "
+            f"Total={total_avg*1000:.1f}"
+            f"\nUptime: {elapsed/60:.1f}min\n"
+        )
 
 
 class SoundPlayer:
@@ -193,6 +254,7 @@ def monitor_obs_source(
 
     sound_player = SoundPlayer()
     last_alert_time = 0
+    perf_monitor = PerformanceMonitor(window_size=30)
 
     try:
         client = obs.ReqClient(host=obs_host, port=obs_port, password=obs_password)
@@ -211,20 +273,36 @@ def monitor_obs_source(
         frame_count = 0
         while True:
             try:
+                capture_start = time.time()
+
                 response = get_cropped_capture(
                     client, scene_name, capture_width, capture_height
                 )
 
-                img_data = base64.b64decode(response.image_data.split(",")[1])
-                pil_image = Image.open(io.BytesIO(img_data))
+                capture_time = time.time() - capture_start
 
-                frame_count += 1
+                img_data = base64.b64decode(response.image_data.split(",")[1])
+
+                conversion_start = time.time()
+
+                pil_image = Image.open(io.BytesIO(img_data))
 
                 if preview_window:
                     preview_window.updateImage_(pil_image)
 
                 cg_image = pil_to_cgimage(pil_image)
+
+                conversion_time = time.time() - conversion_start
+
+                ocr_start = time.time()
+
                 texts = detect_text_in_image(cg_image, fast_mode)
+
+                ocr_time = time.time() - ocr_start
+
+                perf_monitor.record_frame(capture_time, ocr_time, conversion_time)
+
+                frame_count += 1
 
                 all_text = " ".join(texts)
                 if all_text:
@@ -249,6 +327,8 @@ def monitor_obs_source(
 
                         last_alert_time = current_time
 
+                perf_monitor.print_stats()
+
             except Exception as e:
                 print(f"Error capturing from OBS: {e}")
                 import traceback
@@ -259,6 +339,7 @@ def monitor_obs_source(
 
     except KeyboardInterrupt:
         print("\nMonitoring stopped")
+        perf_monitor.print_stats()
         AppHelper.stopEventLoop()
     except Exception as e:
         print(f"Failed to connect to OBS: {e}")
