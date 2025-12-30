@@ -1,9 +1,10 @@
 # Park a Car Event Tracker
 
-Wanted to overengineer and track when special events happened in the Roblox game called "Park a Car" so I built this system that monitors the game via OBS and alerts when specific words appear on screen using OCR. Also includes some anti-idle utilities for staying active in Roblox.
+Wanted to overengineer and track when special events happened in the Roblox game called "Park a Car" so I built this system that monitors the game via OBS or native window capture and alerts when specific words appear on screen using OCR. Also includes some anti-idle utilities for staying active in Roblox.
 
 ## Features
 
+- **Native Window Monitor** (`native.py`) - Captures any window directly using macOS Quartz APIs (no OBS needed). Uses Vision framework for OCR with configurable crop regions and downscaling for performance.
 - **OBS Event Monitor** (`obs.py`) - Captures your OBS scene in real-time and uses macOS Vision framework to detect text. Alerts when target words appear on screen. Includes built-in performance monitoring (FPS, processing times).
 - **Autoclicker** (`main.py`) - Toggleable auto-clicker with Alt+X
 - **Anti-Idle Script** (`roblox-inactivity.py`) - Performs random realistic actions (walk, jump, camera rotate) to prevent disconnects
@@ -49,7 +50,42 @@ TARGET_WORDS = ["Exclusive", "Secret", "Hacker"]  # Words to detect
 
 ## Usage
 
-### Event Monitor
+### Native Window Monitor (Recommended)
+
+```bash
+python native.py
+```
+
+This will:
+- List all available windows on your system
+- Capture the specified window directly (no OBS needed)
+- Crop to a configurable region (default: middle third horizontally, top half vertically)
+- Downscale the image for faster processing (default: 50%)
+- Perform OCR using macOS Vision framework
+- Print detected text and play sound when target words appear
+- Show a preview window of what's being captured
+- Display performance stats every 5 seconds
+
+**Configuration** (edit `native.py`):
+```python
+WINDOW_NAME = "14488"              # Window ID or partial name to match
+TARGET_WORDS = ["Exclusive", "Hacker"]  # Words to detect
+
+# Crop settings (0.0 to 1.0)
+CROP_H_START = 1/3                 # Horizontal start (left edge)
+CROP_H_END = 2/3                   # Horizontal end (right edge)
+CROP_V_START = 1/8                 # Vertical start (top edge)
+CROP_V_END = 0.5                   # Vertical end (bottom edge)
+
+# Performance settings
+FAST_MODE = False                  # True for faster but less accurate OCR
+SCALE_FACTOR = 0.5                 # Downscale factor (0.5 = half size, faster)
+COOLDOWN = 2.0                     # Seconds between alerts
+```
+
+Press `Ctrl+C` to stop.
+
+### Event Monitor (OBS)
 
 ```bash
 python obs.py
@@ -131,6 +167,19 @@ Create a Raycast Script to toggle the cliclick-based autoclicker:
 
 ## Configuration
 
+### native.py Settings
+
+```python
+WINDOW_NAME = "14488"      # Window ID or partial name match
+CROP_H_START = 1/3         # Crop horizontal start (0-1)
+CROP_H_END = 2/3           # Crop horizontal end (0-1)
+CROP_V_START = 1/8         # Crop vertical start (0-1)
+CROP_V_END = 0.5           # Crop vertical end (0-1)
+SCALE_FACTOR = 0.5         # Downscale factor (lower = faster, less accurate)
+FAST_MODE = False          # Fast OCR mode (less accurate)
+COOLDOWN = 2.0             # Seconds between alerts
+```
+
 ### obs.py Settings
 
 ```python
@@ -165,7 +214,17 @@ INTERVAL = 0.5             # Capture interval in seconds
 
 ## How It Works
 
-### Event Monitor
+### Native Window Monitor
+
+1. Lists all windows and finds target by ID or name substring
+2. Captures window using Quartz CGWindowListCreateImage
+3. Crops to specified region to focus on relevant area
+4. Downscales image for faster OCR processing
+5. Uses macOS Vision framework's VNRecognizeTextRequest for OCR
+6. Searches detected text for target words
+7. Plays system sound and prints alert when match found
+
+### OBS Event Monitor
 
 1. Connects to OBS WebSocket
 2. Captures screenshots of the specified scene
@@ -182,14 +241,20 @@ INTERVAL = 0.5             # Capture interval in seconds
 
 ## Troubleshooting
 
+**"No windows found matching..."** (native.py)
+- Run the script to see the list of available windows
+- Use the exact window ID (number) instead of name for reliability
+- Make sure the target window is visible on screen
+
 **"Failed to connect to OBS"**
 - Make sure OBS is running
 - Check WebSocket is enabled in OBS Settings
 - Verify password and port (default: 4455)
 
 **No text detected**
-- Check that the source/scene names match exactly in OBS
-- Try lowering the resolution or switching to FAST_MODE
+- For native.py: Adjust crop region to focus on text area, try SCALE_FACTOR = 1.0
+- For obs.py: Check that the source/scene names match exactly in OBS
+- Try switching FAST_MODE to see if accuracy improves
 - Ensure text is readable in the captured preview window
 
 **Autoclicker not working**
